@@ -3,6 +3,7 @@ import express from "express";
 import ejs from "ejs";
 import { dbConnect } from "./db/db.js";
 import mongoose from "mongoose";
+import encrypt from "mongoose-encryption";
 
 const app = express();
 const port = 3000;
@@ -15,10 +16,14 @@ app.use(express.urlencoded({ extended: true }));
 dbConnect();
 
 //Setup userSchema and Model
-const userSchema = mongoose.Schema({
+const userSchema = new mongoose.Schema({
   email: String,
   password: String,
 });
+
+const secret = "Thisisourlittlsecret";
+userSchema.plugin(encrypt, { secret: secret, encryptedFields: ["password"] });
+
 const User = mongoose.model("User", userSchema);
 
 app.get("/", (req, res) => {
@@ -58,8 +63,8 @@ app.post("/login", (req, res) => {
     } else {
       if (foundUser.password === password) {
         res.render("secrets");
-      }else{
-        res.render('login', {message: "username or password incorect"});
+      } else {
+        res.render("login", { message: "username or password incorect" });
       }
     }
   });
