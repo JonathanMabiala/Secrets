@@ -1,10 +1,11 @@
 //jshint esversion:6
-import 'dotenv/config';
+import "dotenv/config";
 import express from "express";
 import ejs from "ejs";
 import { dbConnect } from "./db/db.js";
 import mongoose from "mongoose";
-import encrypt from "mongoose-encryption";
+import bcrypt from "bcrypt";
+const saltRounds = 10;
 
 const app = express();
 const port = 3000;
@@ -22,8 +23,6 @@ const userSchema = new mongoose.Schema({
   password: String,
 });
 
-userSchema.plugin(encrypt, { secret: process.env.SECRET, encryptedFields: ["password"] });
-
 const User = mongoose.model("User", userSchema);
 
 app.get("/", (req, res) => {
@@ -39,33 +38,37 @@ app.get("/register", (req, res) => {
 });
 
 app.post("/register", (req, res) => {
-  const username = req.body.username;
-  const password = req.body.password;
-  const newUser = new User({
-    email: username,
-    password: password,
-  });
+  bcrypt.hash(req.body.password, saltRounds, function (err, hash) {
+    // Store hash in your password DB.
+    const newUser = new User({
+      email: req.body.username,
+      password: hash,
+    });
 
-  newUser.save().then((result) => {
-    console.log(result);
-  });
+    newUser.save().then((result) => {
+      console.log(result);
+    });
 
-  res.render("secrets");
+    res.render("secrets");
+  });
 });
 
 app.post("/login", (req, res) => {
-  const username = req.body.username;
-  const password = req.body.password;
-
-  User.findOne({ email: username }).then((foundUser) => {
+  User.findOne({ email: req.body.username }).then((foundUser) => {
     if (!foundUser) {
       console.log("user not found");
     } else {
-      if (foundUser.password === password) {
-        res.render("secrets");
-      } else {
-        res.render("login", { message: "username or password incorect" });
-      }
+      bcrypt.compare(
+        req.body.password,
+        foundUser.password,
+        function (err, result) {
+          if (result) {
+            res.render("secrets");
+          } else {
+            res.render("login", { message: "username or password incorect" });
+          }
+        }
+      );
     }
   });
 });
